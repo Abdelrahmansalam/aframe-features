@@ -46,7 +46,6 @@
   position="-3 0 60"
   rotation="0 180 0"
   roughness="0.9"
-  color-toggle
 ></a-gltf-model>
       <a-box
         color="tan"

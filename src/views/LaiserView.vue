@@ -78,9 +78,9 @@
   console.log(event);
         let scene = document.querySelector("#scene");
         let laser = document.createElement("a-cylinder");
-        laser.setAttribute("radius", "0.01");
+        laser.setAttribute("radius", "0.005");
         laser.setAttribute("color", "red");
-        laser.setAttribute("opacity", "0.4");
+        laser.setAttribute("opacity", "0.05");
   
         // Access the camera
         let cameraEl = document.querySelector("#camera");
@@ -96,6 +96,7 @@
         let vector = new THREE.Vector3().subVectors(intersectionPoint, cameraPos);
         let distance = vector.length();
         laser.setAttribute("height", `${distance}`);
+
   
         // Calculate midpoint for the position of the laser
         let midpoint = new THREE.Vector3()
