@@ -17,11 +17,13 @@
     "pinia": "^2.1.7",
     "super-hands": "^3.0.4",
     "three": "^0.165.0",
+    "three-laser-pointer": "^1.2.3",
     "vue": "^3.4.21",
     "vue-router": "^4.3.3",
     "vuetify": "^3.6.9"
   },
   "devDependencies": {
+    "@types/three": "^0.165.0",
     "@vitejs/plugin-vue": "^5.0.4",
     "vite": "^5.2.8"
   }

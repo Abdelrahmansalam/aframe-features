@@ -1,156 +1,115 @@
 <template>
-  <a-scene id="scene">
-    <a-assets>
-      <a-asset-item
-        id="sky"
-        src="../../public/assets/models/sky/scene.gltf"
-      ></a-asset-item>
-    </a-assets>
-    <a-entity laser>
-      <a-box
-        position="0 2.5 -20"
-        width="30"
-        height="15"
-        depth="0.2"
-        color="#4CC3D9"
-      ></a-box>
-      <a-box
-        position="-15 2.5 -10"
-        width="30"
-        height="5"
-        depth="0.2"
-        color="#4CC3D9"
-        rotation="0 90 0"
-      ></a-box>
-      <a-box
-        position="15 2.5 -10"
-        width="30"
-        height="5"
-        depth="0.2"
-        color="#4CC3D9"
-        rotation="0 90 0"
-      ></a-box>
-
-      <a-plane
-        position="0 0 -4"
-        rotation="-90 0 0"
-        width="40"
-        height="40"
-        color="#7BC8A4"
-      ></a-plane>
-    </a-entity>
-    <a-gltf-model src="#sky" rotation="0 180 0"></a-gltf-model>
-    <a-entity id="rig">
-      <a-entity
-        id="camera"
-        camera
-        look-controls
-        wasd-controls
-        position="0 2 1"
-        capture-mouse
-        raycaster
-        cursor="rayOrigin: mouse"
-        body="type: static; shape: sphere; sphereRadius: 0.001"
-        super-hands="colliderEvent: raycaster-intersection;
-                                     colliderEventProperty: els;
-                                     colliderEndEvent: raycaster-intersection-cleared;
-                                     colliderEndEventProperty: clearedEls;"
-        rotation
-        velocity
-        rotation-reader
-      >
+    <a-scene id="scene">
+      <a-assets>
+        <a-asset-item id="sky" src="../../public/assets/models/sky/scene.gltf"></a-asset-item>
+      </a-assets>
+      <a-entity laser add-raycastable>
+        <a-box position="0 2.5 -20" width="30" height="15" depth="0.2" color="#4CC3D9"></a-box>
+        <a-box position="-15 2.5 -10" width="30" height="5" depth="0.2" color="#4CC3D9" rotation="0 90 0"></a-box>
+        <a-box position="15 2.5 -10" width="30" height="5" depth="0.2" color="#4CC3D9" rotation="0 90 0"></a-box>
+  
+        <a-plane position="0 0 -4" rotation="-90 0 0" width="40" height="40" color="#7BC8A4"></a-plane>
       </a-entity>
-    </a-entity>
-  </a-scene>
-</template>
-
-<script>
-AFRAME.registerComponent("laser", {
-  init: function () {
-
-
-    this.createLaser = (event) => {
-      this.updateLaser(event);
-    };
-
-    this.updateLaser = (event) => {
-      console.log(event);
-      let scene = document.querySelector("#scene");
-      let laser = document.createElement("a-cylinder");
-      laser.setAttribute("radius", "0.005");
-      laser.setAttribute("color", "red");
-      laser.setAttribute("opacity", "0.5");
-
-      // Access the camera
-      let cameraEl = document.querySelector("#camera");
-      let cameraPos = new THREE.Vector3();
-      cameraEl.object3D.getWorldPosition(cameraPos);
-      console.log("Camera Position:", cameraPos);
-
-      // Intersection point
-      let intersectionPoint = event.detail.intersection.point;
-      console.log("Intersection Point:", intersectionPoint);
-
-      // Calculate the vector from the camera to the intersection point
-      let vector = new THREE.Vector3().subVectors(intersectionPoint, cameraPos);
-      let distance = vector.length();
-      laser.setAttribute("height", `${distance}`);
-
-      // Calculate midpoint for the position of the laser
-      let midpoint = new THREE.Vector3()
-        .addVectors(cameraPos, intersectionPoint)
-        .multiplyScalar(0.5);
-      laser.setAttribute(
-        "position",
-        `${midpoint.x} ${midpoint.y} ${midpoint.z}`
-      );
-
-      // Calculate the rotation
-      let upVector = new THREE.Vector3(0, 1, 0);
-      let crossProduct = new THREE.Vector3().crossVectors(upVector, vector);
-      let roll = Math.atan2(crossProduct.length(), upVector.dot(vector));
-
-      // Calculate the yaw and pitch
-      let yaw = Math.atan2(vector.z, vector.x);
-      let pitch = Math.atan2(
-        vector.y,
-        Math.sqrt(vector.x * vector.x + vector.z * vector.z)
-      );
-
-      let euler = new THREE.Euler(pitch, yaw, roll, "XYZ");
-      let rotationDegrees = new THREE.Vector3(
-        THREE.MathUtils.radToDeg(euler.x),
-        THREE.MathUtils.radToDeg(euler.y),
-        THREE.MathUtils.radToDeg(euler.z)
-      );
-      laser.setAttribute(
-        "rotation",
-        `${rotationDegrees.x} ${180 - rotationDegrees.y} ${rotationDegrees.z}`
-      );
-
-      scene.appendChild(laser);
-
-      this.currentLaser = laser;
-      setTimeout(() => {
-        if (this.currentLaser) {
-          this.currentLaser.remove();
-        }
-      }, 2000);
-    };
-
-    this.removeLaser = () => {
-      if (this.currentLaser) {
-        this.currentLaser.remove();
-        this.currentLaser = null;
-      }
-    };
-
-    this.el.addEventListener("mousedown", this.createLaser);
-    this.el.addEventListener("mouseup", this.removeLaser);
-  },
-  remove: function () {
-    this.el.removeEventListener("mousedown", this.createLaser);
-    this.el.removeEventListener("mouseup", this.removeLaser);
-  },
-});
-</script>
+      <a-gltf-model src="#sky" rotation="0 180 0"></a-gltf-model>
+      <a-entity id="rig">
+        <a-entity
+          id="camera"
+          camera
+          look-controls
+          wasd-controls
+          position="0 2 1"
+          capture-mouse
+          raycaster="objects: .raycastable"
+          cursor="rayOrigin: mouse"
+          body="type: static; shape: sphere; sphereRadius: 0.001"
+          super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls;"
+          rotation
+          velocity
+          rotation-reader
+        >
+        </a-entity>
+      </a-entity>
+    </a-scene>
+  </template>
+  
+  <script>
+  AFRAME.registerComponent('add-raycastable', {
+    init: function () {
+      // Get all child entities of this entity
+      let children = this.el.querySelectorAll('*');
+  
+      // Add 'raycastable' class to each child entity
+      children.forEach(child => {
+        child.classList.add('raycastable');
+      });
+    }
+  });
+  
+  AFRAME.registerComponent("laser", {
+    init: function () {
+      // Cache the camera element
+      this.cameraEl = document.querySelector("#camera");
+      this.sceneEl = document.querySelector("a-scene");
+  
+      // Flag to check if mouse is down
+      this.isMouseDown = false;
+  
+      this.createLaser = (event) => {
+        this.isMouseDown = true;
+        // Access the camera
+        console.log("newPosition" ,event);
+        let cameraEl = this.cameraEl;
+        let cameraPos = new THREE.Vector3();
+        cameraEl.object3D.getWorldPosition(cameraPos);
+        console.log("Camera Position:", cameraPos);
+  
+        // Intersection point
+  let intersectionPoint = event.detail?.intersection?.point ?? event.point;
+        console.log("Intersection Point:", intersectionPoint);
+  
+        const geometry = new THREE.BufferGeometry();
+        const vertices = new Float32Array([
+          cameraPos.x + 0.01, cameraPos.y, cameraPos.z + 0.05,
+          intersectionPoint.x, intersectionPoint.y, intersectionPoint.z
+        ]);
+        geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+  
+        const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+  
+        const line = new THREE.Line(geometry, material);
+        this.el.setObject3D('laser', line);
+      };
+  
+      this.updateLaser = (event) => {
+        if (!this.isMouseDown) return; // Only proceed if the mouse is down
+        this.el.removeObject3D('laser');
+        console.log('Mouse move event:', event); // Log the event object
+        
+        const raycaster = new THREE.Raycaster();
+        const pointer = new THREE.Vector2();
+        pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+        pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(pointer, this.cameraEl.components.camera.camera);
+        
+        const intersects = raycaster.intersectObjects(this.sceneEl.object3D.children, true);
+        console.log(intersects[0]);
+        this.createLaser(intersects[0])
+      };
+  
+      this.removeLaser = () => {
+        this.el.removeObject3D('laser');
+        this.isMouseDown = false;
+      };
+  
+      this.el.addEventListener("mousedown", this.createLaser);
+      window.addEventListener("mousemove", this.updateLaser);
+      this.el.addEventListener("mouseup", this.removeLaser);
+    },
+    remove: function () {
+      this.el.removeEventListener("mousedown", this.createLaser);
+      window.removeEventListener("mousemove", this.updateLaser);
+      this.el.removeEventListener("mouseup", this.removeLaser);
+    },
+  });
+  </script>
+  

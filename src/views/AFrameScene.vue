@@ -1,114 +1,117 @@
 <template>
-  <!-- Main Scene -->
-  <a-scene><!-- vr-mode-ui="enabled: false">-->
-    <a-entity
-      camera=""
-      look-controls=""
-      wasd-controls=""
-      position="0 2 1"
-      capture-mouse=""
-      raycaster=""
-      cursor="rayOrigin:mouse"
-      body="type: static; shape: sphere; sphereRadius: 0.001"
-      super-hands="colliderEvent: raycaster-intersection;
-                             colliderEventProperty: els;
-                             colliderEndEvent:raycaster-intersection-cleared;
-                             colliderEndEventProperty: clearedEls;"
-      rotation=""
-      velocity=""
-    >
-    </a-entity>
-
+  <a-scene id="scene">
     <a-assets>
-      <a-asset-item
-        id="village"
-        src="../../public/assets/models/village/scene.gltf"
-      ></a-asset-item>
-      <a-asset-item
-        id="rex"
-        src="../../public/assets/models/rex/scene.gltf"
-      ></a-asset-item>
-      <a-asset-item
-        id="sky"
-        src="../../public/assets/models/sky/scene.gltf"
-      ></a-asset-item>
+      <a-asset-item id="sky" src="../../public/assets/models/sky/scene.gltf"></a-asset-item>
     </a-assets>
+    <a-entity laser add-raycastable>
+      <a-entity geometry="primitive: box; width: 30; height: 15; depth: 0.2" material="color: #4CC3D9" position="0 2.5 -20"></a-entity>
+<a-entity geometry="primitive: box; width: 30; height: 5; depth: 0.2" material="color: #4CC3D9" position="-15 2.5 -10" rotation="0 90 0"></a-entity>
+<a-entity geometry="primitive: box; width: 30; height: 5; depth: 0.2" material="color: #4CC3D9" position="15 2.5 -10" rotation="0 90 0"></a-entity>
+<a-entity geometry="primitive: plane; width: 40; height: 40" material="color: #7BC8A4" position="0 0 -4" rotation="-90 0 0"></a-entity>
+<a-entity light="type: directional; color: #fff;" position="-15.71626 19.643 6.973"></a-entity>
 
-    <a-gltf-model
-      physx-body="type: static"
-      src="#village"
-      scale="100 100 100"
-    ></a-gltf-model>
-    <a-gltf-model
-      src="#rex"
-      position="-3 0 60"
-      rotation="0 180 0"
-      animation__GothroughVillage="property: position; from: -3 0 60; to: -3 0 20 ;  dur: 5000;loop:true; dir:reverse autoplay:true ;pauseEvents"
-      ></a-gltf-model>
-    <a-box
-      color="tan"
-      position="4.427 6.046 42.81639"
-      width="2"
-      height="1"
-      @click="goToHome"
-      @mouseenter="hoverOn"
-      @mouseleave="hoverOff"
-
-    ></a-box>
-
-    <a-gltf-model
-      src="#sky"
-    ></a-gltf-model>
-
+    </a-entity>
+    <a-gltf-model src="#sky" rotation="0 180 0"></a-gltf-model>
+    <a-entity id="rig">
       <a-entity
-        id="camera3"
-        secondary-camera="outputElement:#viewport3"
-        position="0 120 0"
-        rotation="-90 0 0"
+        id="camera"
+        camera
+        look-controls
+        wasd-controls
+        position="0 2 1"
+        capture-mouse
+        raycaster="objects: .raycastable"
+        cursor="rayOrigin: mouse"
+        body="type: static; shape: sphere; sphereRadius: 0.001"
+        super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls;"
+        rotation
+        velocity
+        rotation-reader
       >
       </a-entity>
+    </a-entity>
   </a-scene>
-
-  <div
-    id="viewport3"
-    style="
-      position: absolute;
-      bottom: 20px;
-      right: 200px;
-      width: 200px;
-      height: 200px;
-    "
-  ></div>
 </template>
 
 <script>
-import { useRouter } from 'vue-router';
+AFRAME.registerComponent('add-raycastable', {
+  init: function () {
+    // Get all child entities of this entity
+    let children = this.el.querySelectorAll('*');
 
-export default {
-  setup() {
-    const router = useRouter();
+    // Add 'raycastable' class to each child entity
+    children.forEach(child => {
+      child.classList.add('raycastable');
+    });
+  }
+});
 
-    const goToHome = () => {
-      router.push('/');
+AFRAME.registerComponent("laser", {
+  init: function () {
+    // Cache the camera element
+    this.cameraEl = document.querySelector("#camera");
+    this.sceneEl = document.querySelector("a-scene");
+
+    // Flag to check if mouse is down
+    this.isMouseDown = false;
+
+    this.createLaser = (event) => {
+      this.isMouseDown = true;
+      // Access the camera
+      console.log("newPosition" ,event);
+      let cameraEl = this.cameraEl;
+      let cameraPos = new THREE.Vector3();
+      cameraEl.object3D.getWorldPosition(cameraPos);
+      console.log("Camera Position:", cameraPos);
+
+      // Intersection point
+let intersectionPoint = event.detail?.intersection?.point ?? event.point;
+      console.log("Intersection Point:", intersectionPoint);
+
+      const geometry = new THREE.BufferGeometry();
+      const vertices = new Float32Array([
+        cameraPos.x, cameraPos.y, cameraPos.z,
+        intersectionPoint.x, intersectionPoint.y, intersectionPoint.z
+      ]);
+      geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+
+      const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+
+      const line = new THREE.Line(geometry, material);
+      this.el.setObject3D('laser', line);
     };
 
-    const hoverOn = (event) => {
-      const el = event.target;
-      el.setAttribute('material', 'opacity', 0.7);
-      el.setAttribute('material', 'transparent', true);
+    this.updateLaser = (event) => {
+      if (!this.isMouseDown) return; // Only proceed if the mouse is down
+      this.el.removeObject3D('laser');
+      console.log('Mouse move event:', event); // Log the event object
+      
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+      pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(pointer, this.cameraEl.components.camera.camera);
+      
+      const intersects = raycaster.intersectObjects(this.sceneEl.object3D.children, true);
+      console.log(intersects[0]);
+      this.createLaser(intersects[0])
     };
 
-    const hoverOff = (event) => {
-      const el = event.target;
-      el.setAttribute('material', 'opacity', 1);
-      el.setAttribute('material', 'transparent', false);
+    this.removeLaser = () => {
+      this.el.removeObject3D('laser');
+      this.isMouseDown = false;
     };
 
-    return {
-      goToHome,
-      hoverOn,
-      hoverOff,
-    };
+    this.el.addEventListener("mousedown", this.createLaser);
+    window.addEventListener("mousemove", this.updateLaser);
+    this.el.addEventListener("mouseup", this.removeLaser);
   },
-};
+  remove: function () {
+    this.el.removeEventListener("mousedown", this.createLaser);
+    window.removeEventListener("mousemove", this.updateLaser);
+    this.el.removeEventListener("mouseup", this.removeLaser);
+  },
+});
 </script>
+
+

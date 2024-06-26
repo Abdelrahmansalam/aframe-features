@@ -9,7 +9,8 @@ import 'vuetify/styles'
 import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
-
+import * as THREE from "https://cdn.skypack.dev/three@0.136.0";
+import {OrbitControls} from "https://cdn.skypack.dev/three@0.136.0/examples/jsm/controls/OrbitControls";
 const app = createApp(App)
 
 
