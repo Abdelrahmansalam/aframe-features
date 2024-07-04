@@ -49,7 +49,6 @@ AFRAME.registerComponent("laser", {
         cameraPos.x + 0.01,
         cameraPos.y,
         cameraPos.z + 0.05,
-        // 0,2,0,
         intersectionPoint.x,
         intersectionPoint.y,
         intersectionPoint.z,
@@ -126,7 +125,7 @@ AFRAME.registerComponent("laser", {
     }
   },
   createBurningEffect: function (position, normal) {
-    const particleCount = 80;
+    const particleCount = 70;
     const particles = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     const velocities = new Float32Array(particleCount * 3);
@@ -136,7 +135,7 @@ AFRAME.registerComponent("laser", {
     const quaternion = new THREE.Quaternion().setFromUnitVectors(up, normal);
 
     for (let i = 0; i < particleCount; i++) {
-      const radius = Math.random() * 0.07;
+      const radius = Math.random() * 0.1;
       const angle = Math.random() * 2 * Math.PI;
       const x = radius * Math.cos(angle);
       const y = radius * Math.sin(angle);
@@ -182,10 +181,9 @@ AFRAME.registerComponent("laser", {
       requestAnimationFrame(animateParticles);
 
       const elapsedTime = (time - startTime) / 1000;
-      const fadeDuration = 1.8;
+      const fadeDuration = 1.7;
       const positions = particles.attributes.position.array;
       const velocities = particles.attributes.velocity.array;
-      const colors = particles.attributes.color.array;
 
       for (let i = 0; i < particleCount; i++) {
         positions[i * 3] += velocities[i * 3];
@@ -195,34 +193,6 @@ AFRAME.registerComponent("laser", {
 
       particles.attributes.position.needsUpdate = true;
 
-      // Smooth color transition
-      let r, g, b;
-      if (elapsedTime <= 0.6) {
-        // Initial color
-        r = 1;
-        g = 0.2;
-        b = 0;
-      } else if (elapsedTime <= 1.2) {
-        // Transition to red
-        const t = (elapsedTime - 0.6) / 0.6;
-        r = 1;
-        g = 0.2 * (1 - t);
-        b = 0;
-      } else {
-        // Transition to black
-        const t = (elapsedTime - 1.2) / 0.6;
-        r = 1 * (1 - t);
-        g = 0;
-        b = 0;
-      }
-      for (let i = 0; i < particleCount; i++) {
-        colors[i * 3] = r;
-        colors[i * 3 + 1] = g;
-        colors[i * 3 + 2] = b;
-      }
-      particles.attributes.color.needsUpdate = true;
-
-      // Fade out effect
       if (elapsedTime < fadeDuration) {
         material.opacity = 1 - (elapsedTime / fadeDuration);
       } else {

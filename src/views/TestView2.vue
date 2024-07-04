@@ -1,5 +1,5 @@
 <template>
-  <a-scene id="scene">
+  <a-scene id="scene" >
     <a-assets>
       <a-asset-item
         id="sky"
@@ -14,7 +14,7 @@
         src="../../public/assets/sounds/mark-sound.mp3"
       ></audio>
     </a-assets>
-    <a-entity gestures>
+    <a-entity gestures log-visible-objects>
       <a-box
         position="0 2.5 -20"
         width="30"
@@ -182,7 +182,6 @@ AFRAME.registerComponent("gestures", {
   init: function () {
     this.set_context_menu();
     this.lastClickPosition = null; // Store the last click position
-    this.markings = []; // Array to store the current markings
   },
   set_context_menu: function () {
     const sceneEl = document.querySelector("a-scene");
@@ -280,88 +279,65 @@ AFRAME.registerComponent("gestures", {
       "position",
       `${position.x} ${position.y + 0.2} ${position.z}`
     );
-
-    mark.addEventListener("model-loaded", () => {
-      mark.object3D.traverse((node) => {
-        if (node.isMesh) {
-          node.name = "mark";
-        }
-      });
+  // Wait for the model to load before setting the name
+  mark.addEventListener('model-loaded', function () {
+    mark.object3D.traverse(node => {
+      if (node.isMesh) {
+        node.name = "mark";
+      }
     });
-
-    // Add the new mark to the scene and to the markings array
+  });
     scene.appendChild(mark);
-    this.markings.push(mark);
-
-    // Check if there are more than 3 markings, and if so, remove the oldest one
-    if (this.markings.length > 3) {
-      const oldMark = this.markings.shift(); // Remove the first element from the array
-      oldMark.parentNode.removeChild(oldMark); // Remove it from the scene
-    }
-
-
-    // Initialize log-visible-objects component if not already initialized
-    if (this.markings.length === 1) {
-      scene.setAttribute('log-visible-objects', '');
-    }
 
     setTimeout(() => {
       mark.remove();
-      this.markings = this.markings.filter(m => m !== mark);
-      // Remove log-visible-objects component if no more marks
-      if (this.markings.length === 0) {
-        scene.removeAttribute('log-visible-objects');
-      }
     }, 7000);
   },
 });
-
 AFRAME.registerComponent("heart-shape", {
-  schema: {
-    color: { type: "color", default: "#ff0000" }, // Default color is red
-  },
+    schema: {
+      color: { type: "color", default: "#ff0000" }, // Default color is red
+    },
+    init: function () {
+      const heartShape = new THREE.Shape();
+      heartShape.moveTo(25, 25);
+      heartShape.bezierCurveTo(25, 25, 20, 0, 0, 0);
+      heartShape.bezierCurveTo(-30, 0, -30, 35, -30, 35);
+      heartShape.bezierCurveTo(-30, 55, -10, 77, 25, 95);
+      heartShape.bezierCurveTo(60, 77, 80, 55, 80, 35);
+      heartShape.bezierCurveTo(80, 35, 80, 0, 50, 0);
+      heartShape.bezierCurveTo(35, 0, 25, 25, 25, 25);
+  
+      const extrudeSettings = {
+        depth: 8,
+        bevelEnabled: true,
+        bevelSegments: 2,
+        steps: 2,
+        bevelSize: 1,
+        bevelThickness: 1,
+      };
+  
+      const geometry = new THREE.ExtrudeGeometry(heartShape, extrudeSettings);
+      const material = new THREE.MeshPhongMaterial({ color: this.data.color });
+      const mesh = new THREE.Mesh(geometry, material);
+  
+      this.el.setObject3D("mesh", mesh);
+    },
+    update: function () {
+      const mesh = this.el.getObject3D("mesh");
+      if (mesh) {
+        mesh.material.color.set(this.data.color);
+      }
+    },
+  
+    remove: function () {
+      this.el.removeObject3D("mesh");
+    },
+  });
+  //////////////////////////////////////////////////////////////////////////////////////////
+
+  AFRAME.registerComponent("log-visible-objects", {
   init: function () {
-    const heartShape = new THREE.Shape();
-    heartShape.moveTo(25, 25);
-    heartShape.bezierCurveTo(25, 25, 20, 0, 0, 0);
-    heartShape.bezierCurveTo(-30, 0, -30, 35, -30, 35);
-    heartShape.bezierCurveTo(-30, 55, -10, 77, 25, 95);
-    heartShape.bezierCurveTo(60, 77, 80, 55, 80, 35);
-    heartShape.bezierCurveTo(80, 35, 80, 0, 50, 0);
-    heartShape.bezierCurveTo(35, 0, 25, 25, 25, 25);
-
-    const extrudeSettings = {
-      depth: 8,
-      bevelEnabled: true,
-      bevelSegments: 2,
-      steps: 2,
-      bevelSize: 1,
-      bevelThickness: 1,
-    };
-
-    const geometry = new THREE.ExtrudeGeometry(heartShape, extrudeSettings);
-    const material = new THREE.MeshPhongMaterial({ color: this.data.color });
-    const mesh = new THREE.Mesh(geometry, material);
-
-    this.el.setObject3D("mesh", mesh);
-  },
-  update: function () {
-    const mesh = this.el.getObject3D("mesh");
-    if (mesh) {
-      mesh.material.color.set(this.data.color);
-    }
-  },
-
-  remove: function () {
-    this.el.removeObject3D("mesh");
-  },
-});
-
-AFRAME.registerComponent("log-visible-objects", {
-  init: function () {
-    if (!document.querySelector('a-gltf-model[src="#mark"]')) {
-      return; // Exit if no mark in the scene
-    }
     const screenWidth = window.innerWidth;
     const screenHeight = window.innerHeight;
     console.log(`Screen width: ${screenWidth}, Screen height: ${screenHeight}`);
@@ -373,8 +349,8 @@ AFRAME.registerComponent("log-visible-objects", {
     this.logVisibleObjects = this.logVisibleObjects.bind(this); // Bind the function to retain `this` context
 
     // Add event listeners for mouse movement and keyboard input
-    window.addEventListener("mousemove", this.logVisibleObjects);
-    window.addEventListener("keydown", this.logVisibleObjects);
+    window.addEventListener('mousemove', this.logVisibleObjects);
+    window.addEventListener('keydown', this.logVisibleObjects);
   },
   logVisibleObjects: function () {
     const sceneEl = this.el.sceneEl;
@@ -386,24 +362,18 @@ AFRAME.registerComponent("log-visible-objects", {
       const cameraViewProjectionMatrix = new THREE.Matrix4();
 
       // Set the frustum from the camera's perspective
-      cameraViewProjectionMatrix.multiplyMatrices(
-        camera.projectionMatrix,
-        camera.matrixWorldInverse
-      );
+      cameraViewProjectionMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
       frustum.setFromProjectionMatrix(cameraViewProjectionMatrix);
 
       const visibleObjects = [];
       let markObject = null;
 
-      sceneEl.object3D.traverse((node) => {
+      sceneEl.object3D.traverse(node => {
         if (node.isMesh) {
-          if (
-            frustum.containsPoint(node.position) ||
-            frustum.intersectsObject(node)
-          ) {
+          if (frustum.containsPoint(node.position) || frustum.intersectsObject(node)) {
             visibleObjects.push(node);
           }
-          if (node.name === "mark") {
+          if (node.name === 'mark') {
             markObject = node;
           }
         }
@@ -438,11 +408,7 @@ AFRAME.registerComponent("log-visible-objects", {
           if (markObject) {
             const markPosition = new THREE.Vector3();
             markObject.getWorldPosition(markPosition);
-            const vector3d = new THREE.Vector3(
-              markPosition.x - hitPosition.x,
-              markPosition.y - hitPosition.y,
-              markPosition.z - hitPosition.z
-            );
+            const vector3d = new THREE.Vector3(markPosition.x - hitPosition.x, markPosition.y - hitPosition.y ,  markPosition.z - hitPosition.z);
             console.log("Vector between Raycast hit and Mark position:", vector3d);
 
             // Convert the 3D position to 2D screen coordinates
@@ -473,13 +439,13 @@ AFRAME.registerComponent("log-visible-objects", {
   },
   toScreenPosition: function (position, camera) {
     const vector = position.clone().project(camera);
-    vector.x = ((vector.x + 1) / 2) * window.innerWidth;
-    vector.y = (-(vector.y - 1) / 2) * window.innerHeight;
+    vector.x = (vector.x + 1) / 2 * window.innerWidth;
+    vector.y = -(vector.y - 1) / 2 * window.innerHeight;
     return { x: vector.x, y: vector.y };
   },
   placeArrowOnLine: function (hitPosition, markPosition) {
     const sceneEl = this.el.sceneEl;
-    const cameraEl = sceneEl.querySelector("#camera");
+    const cameraEl = sceneEl.querySelector('#camera');
     const cameraObject = cameraEl.object3D;
 
     if (this.arrowEntity) {
@@ -501,19 +467,19 @@ AFRAME.registerComponent("log-visible-objects", {
     arrowPosition.y = 1;
 
     // Create a new arrow entity
-    this.arrowEntity = document.createElement("a-entity");
+    this.arrowEntity = document.createElement('a-entity');
 
     // Create the arrow components using Three.js
     const arrowGroup = new THREE.Group();
 
     const arrowShaft = new THREE.Mesh(
       new THREE.CylinderGeometry(0.0125, 0.0375, 0.375).translate(0, 0.1875, 0),
-      new THREE.MeshBasicMaterial({ color: "blue" })
+      new THREE.MeshBasicMaterial({ color: 'blue' })
     );
 
     const arrowPoint = new THREE.Mesh(
       new THREE.ConeGeometry(0.125, 0.25, 10).translate(0, 0.125, 0),
-      new THREE.MeshBasicMaterial({ color: "red" })
+      new THREE.MeshBasicMaterial({ color: 'red' })
     );
 
     arrowPoint.position.y = 0.375; // Adjust the position to connect it with the shaft
@@ -528,18 +494,23 @@ AFRAME.registerComponent("log-visible-objects", {
     arrowGroup.lookAt(markPosition);
 
     // Convert Three.js group to A-Frame entity and add it
-    this.arrowEntity.setObject3D("mesh", arrowGroup);
+    this.arrowEntity.setObject3D('mesh', arrowGroup);
 
     // Add the arrow entity to the scene
     sceneEl.appendChild(this.arrowEntity);
   },
   remove: function () {
-    window.removeEventListener("mousemove", this.logVisibleObjects);
-    window.removeEventListener("keydown", this.logVisibleObjects);
+    window.removeEventListener('mousemove', this.logVisibleObjects);
+    window.removeEventListener('keydown', this.logVisibleObjects);
 
     if (this.arrowEntity) {
       this.arrowEntity.parentNode.removeChild(this.arrowEntity);
     }
-  },
+  }
 });
+
+
+
+
+
 </script>
