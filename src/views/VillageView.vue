@@ -1,249 +1,446 @@
 <template>
-  <div>
-    <div ref="sceneContainer" id="scene-container"></div>
+  <a-scene id="scene" marker>
+    <a-assets>
+      <a-asset-item
+        id="sky"
+        src="../../public/assets/models/sky/scene.gltf"
+      ></a-asset-item>
+    </a-assets>
+    <a-entity gestures>
+      <a-box
+        position="0 2.5 -20"
+        width="30"
+        height="15"
+        depth="0.2"
+        color="#4CC3D9"
+      ></a-box>
+      <a-box
+        position="-15 2.5 -10"
+        width="30"
+        height="5"
+        depth="0.2"
+        color="#4CC3D9"
+        rotation="0 90 0"
+      ></a-box>
+      <a-box
+        position="15 2.5 -10"
+        width="30"
+        height="5"
+        depth="0.2"
+        color="#4CC3D9"
+        rotation="0 90 0"
+      ></a-box>
+      <a-plane
+        position="0 0 -4"
+        rotation="-90 0 0"
+        width="40"
+        height="40"
+        color="#7BC8A4"
+      ></a-plane>
+    </a-entity>
+    <a-gltf-model src="#sky" rotation="0 180 0"></a-gltf-model>
+    <a-entity id="rig">
+      <a-entity
+        id="camera"
+        camera
+        look-controls
+        wasd-controls
+        position="0 2 1"
+        capture-mouse
+        raycaster
+        cursor="rayOrigin: mouse"
+        rotation
+        velocity
+        rotation-reader
+      ></a-entity>
+    </a-entity>
+  </a-scene>
+
+  <div id="context-menu" class="context-menu">
+    <label id="show-menu" for="toggle">
+      <div id="close-menu" class="close-menu">X</div>
+      <div class="context-menu-item" data-action="action1" id="note">Note</div>
+      <div class="context-menu-item" data-action="action2" id="pointer">
+        Marker
+      </div>
+      <div class="context-menu-item" data-action="action3" id="heart">
+        Heart
+      </div>
+      <div class="context-menu-item" data-action="action4" id="light">
+        Light
+      </div>
+    </label>
   </div>
 </template>
 
-<script>
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
-import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
-import { GUI } from "three/examples/jsm/libs/lil-gui.module.min.js";
-
-const vertexShader = `
-  varying vec2 vUv;
-
-  void main() {
-    vUv = uv;
-
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-
-const fragmentShader = `
-  uniform sampler2D baseTexture;
-  uniform sampler2D bloomTexture;
-
-  varying vec2 vUv;
-
-  void main() {
-    gl_FragColor =
-      texture2D(baseTexture, vUv) +
-      vec4(1.0) * texture2D(bloomTexture, vUv);
-  }
-`;
-
-export default {
-  name: "ThreeJSComponent",
-  mounted() {
-    this.initThreeJS();
-  },
-  methods: {
-    initThreeJS() {
-      const BLOOM_SCENE = 1;
-
-      const bloomLayer = new THREE.Layers();
-      bloomLayer.set(BLOOM_SCENE);
-
-      const params = {
-        threshold: 0,
-        strength: 1,
-        radius: 0.5,
-        exposure: 1,
-      };
-
-      const darkMaterial = new THREE.MeshBasicMaterial({ color: "black" });
-      const materials = {};
-
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setPixelRatio(window.devicePixelRatio);
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.toneMapping = THREE.ReinhardToneMapping;
-      this.$refs.sceneContainer.appendChild(renderer.domElement);
-
-      const scene = new THREE.Scene();
-
-      const camera = new THREE.PerspectiveCamera(
-        40,
-        window.innerWidth / window.innerHeight,
-        1,
-        200
-      );
-      camera.position.set(0, 0, 20);
-      camera.lookAt(0, 0, 0);
-
-      const controls = new OrbitControls(camera, renderer.domElement);
-      controls.maxPolarAngle = Math.PI * 0.5;
-      controls.minDistance = 1;
-      controls.maxDistance = 100;
-      controls.addEventListener("change", render);
-
-      const renderScene = new RenderPass(scene, camera);
-
-      const bloomPass = new UnrealBloomPass(
-        new THREE.Vector2(window.innerWidth, window.innerHeight),
-        1.5,
-        0.4,
-        0.85
-      );
-      bloomPass.threshold = params.threshold;
-      bloomPass.strength = params.strength;
-      bloomPass.radius = params.radius;
-
-      const bloomComposer = new EffectComposer(renderer);
-      bloomComposer.renderToScreen = false;
-      bloomComposer.addPass(renderScene);
-      bloomComposer.addPass(bloomPass);
-
-      const mixPass = new ShaderPass(
-        new THREE.ShaderMaterial({
-          uniforms: {
-            baseTexture: { value: null },
-            bloomTexture: { value: bloomComposer.renderTarget2.texture },
-          },
-          vertexShader: vertexShader,
-          fragmentShader: fragmentShader,
-          defines: {},
-        }),
-        "baseTexture"
-      );
-      mixPass.needsSwap = true;
-
-      const outputPass = new OutputPass();
-
-      const finalComposer = new EffectComposer(renderer);
-      finalComposer.addPass(renderScene);
-      finalComposer.addPass(mixPass);
-      finalComposer.addPass(outputPass);
-
-      const raycaster = new THREE.Raycaster();
-
-      const mouse = new THREE.Vector2();
-
-      window.addEventListener("pointerdown", onPointerDown);
-
-      const gui = new GUI();
-
-      const bloomFolder = gui.addFolder("bloom");
-
-      bloomFolder.add(params, "threshold", 0.0, 1.0).onChange(function (value) {
-        bloomPass.threshold = Number(value);
-        render();
-      });
-
-      bloomFolder.add(params, "strength", 0.0, 3).onChange(function (value) {
-        bloomPass.strength = Number(value);
-        render();
-      });
-
-      bloomFolder.add(params, "radius", 0.0, 1.0).step(0.01).onChange(function (
-        value
-      ) {
-        bloomPass.radius = Number(value);
-        render();
-      });
-
-      const toneMappingFolder = gui.addFolder("tone mapping");
-
-      toneMappingFolder.add(params, "exposure", 0.1, 2).onChange(function (
-        value
-      ) {
-        renderer.toneMappingExposure = Math.pow(value, 4.0);
-        render();
-      });
-
-      setupScene();
-
-      function onPointerDown(event) {
-        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-        raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(scene.children, false);
-        if (intersects.length > 0) {
-          const object = intersects[0].object;
-          object.layers.toggle(BLOOM_SCENE);
-          render();
-        }
-      }
-
- 
-
-      function setupScene() {
-        scene.traverse(disposeMaterial);
-        scene.children.length = 0;
-
-        const geometry = new THREE.IcosahedronGeometry(1, 15);
-
-        for (let i = 0; i < 50; i++) {
-          const color = new THREE.Color();
-          color.setHSL(Math.random(), 0.7, Math.random() * 0.2 + 0.05);
-
-          const material = new THREE.MeshBasicMaterial({ color: color });
-          const sphere = new THREE.Mesh(geometry, material);
-          sphere.position.x = Math.random() * 10 - 5;
-          sphere.position.y = Math.random() * 10 - 5;
-          sphere.position.z = Math.random() * 10 - 5;
-          sphere.position.normalize().multiplyScalar(Math.random() * 4.0 + 2.0);
-          sphere.scale.setScalar(Math.random() * Math.random() + 0.5);
-          scene.add(sphere);
-
-          if (Math.random() < 0.25) sphere.layers.enable(BLOOM_SCENE);
-        }
-
-        render();
-      }
-
-      function disposeMaterial(obj) {
-        if (obj.material) {
-          obj.material.dispose();
-        }
-      }
-
-      function render() {
-        scene.traverse(darkenNonBloomed);
-        bloomComposer.render();
-        scene.traverse(restoreMaterial);
-
-        // render the entire scene, then render bloom scene on top
-        finalComposer.render();
-      }
-
-      function darkenNonBloomed(obj) {
-        if (obj.isMesh && bloomLayer.test(obj.layers) === false) {
-          materials[obj.uuid] = obj.material;
-          obj.material = darkMaterial;
-        }
-      }
-
-      function restoreMaterial(obj) {
-        if (materials[obj.uuid]) {
-          obj.material = materials[obj.uuid];
-          delete materials[obj.uuid];
-        }
-      }
-    },
-  },
-};
-</script>
-
-<style scoped>
-#info {
+<style>
+.marker {
   position: absolute;
-  top: 10px;
-  width: 100%;
-  text-align: center;
-  z-index: 100;
-  display: block;
+  top: 50%;
+  left: 50%;
+}
+.marker:hover .text {
+  opacity: 1;
+}
+.marker.shadow .label {
+  filter: drop-shadow(0 0 10px white);
 }
 
-#scene-container {
-  width: 100%;
-  height: 100vh;
-  overflow: hidden;
+.marker .label {
+  position: absolute;
+  top: -20px;
+  left: -20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #00000077;
+  color: white;
+  font-family: Helvetica, Arial, sans-serif;
+  line-height: 40px;
+  font-weight: 100;
+  font-size: 14px;
+  margin: auto;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.3s;
+}
+.marker .text {
+  position: absolute;
+  top: 55px;
+  width: 200px;
+  background: #00000077;
+  color: white;
+  font-family: Helvetica, Arial, sans-serif;
+  left: -100px;
+  text-align: center;
+  border-radius: 5px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.marker .distance {
+  position: absolute;
+  top: 25px;
+  width: 80px;
+  background: #00000077;
+  color: white;
+  font-family: Helvetica, Arial, sans-serif;
+  left: -40px;
+  text-align: center;
+  border-radius: 5px;
+  pointer-events: none;
+}
+.context-menu {
+  display: none;
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.context-menu-item {
+  position: absolute;
+  width: 75px;
+  height: 75px;
+  line-height: 50px;
+  border-radius: 50%;
+  background-color: rgba(18, 146, 12, 0.8);
+  color: white;
+  text-align: center;
+  pointer-events: all;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+.context-menu-item[data-action="action1"] {
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.context-menu-item[data-action="action2"] {
+  top: 50%;
+  left: 100%;
+  transform: translate(-50%, -50%);
+}
+.context-menu-item[data-action="action3"] {
+  top: 100%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.context-menu-item[data-action="action4"] {
+  top: 50%;
+  left: 0;
+  transform: translate(-50%, -50%);
+}
+.close-menu {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  line-height: 30px;
+  border-radius: 50%;
+  background-color: darkred;
+  color: white;
+  text-align: center;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: all;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+.close-menu:hover {
+  background-color: red;
+}
+.context-menu-item:hover {
+  background-color: lime;
 }
 </style>
+
+<script>
+AFRAME.registerComponent("gestures", {
+  init: function () {
+    this.set_context_menu();
+    this.lastClickPosition = null; // Store the last click position
+    this.markings = []; // Array to store the current markings
+  },
+  set_context_menu: function () {
+    const sceneEl = document.querySelector("a-scene");
+    const menu = document.getElementById("context-menu");
+    const closeMenuButton = document.getElementById("close-menu");
+    const menuSize = 200; // width and height of the menu container
+    const component = this;
+
+    document.addEventListener("contextmenu", function (e) {
+      e.preventDefault();
+
+      // Convert screen coordinates to scene coordinates
+      this.camera = sceneEl.camera;
+      const screenPoint = new THREE.Vector2();
+      screenPoint.x = (e.clientX / window.innerWidth) * 2 - 1;
+      screenPoint.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(screenPoint, this.camera);
+
+      const intersects = raycaster.intersectObjects(
+        sceneEl.object3D.children,
+        true
+      );
+      if (intersects.length > 0) {
+        const intersect = intersects[0];
+        const worldPosition = intersect.point;
+        console.log("World Position:", worldPosition);
+
+        // Store the world position for later use
+        component.lastClickPosition = worldPosition;
+      }
+
+      // Show context menu
+      const posX = e.clientX - menuSize / 2;
+      const posY = e.clientY - menuSize / 2;
+      menu.style.top = `${posY}px`;
+      menu.style.left = `${posX}px`;
+      menu.style.display = "block";
+    });
+
+    document.addEventListener("click", function () {
+      menu.style.display = "none";
+    });
+
+    closeMenuButton.addEventListener("click", function () {
+      menu.style.display = "none";
+    });
+
+    document.querySelectorAll(".context-menu-item").forEach((item) => {
+      item.addEventListener("click", function () {
+        const action = item.getAttribute("data-action");
+        console.log("Action:", action);
+
+        if (action === "action3") {
+          // Heart action
+          component.createHeart(component.lastClickPosition);
+        } else if (action === "action2") {
+          // Pointer action
+          component.createMark(component.lastClickPosition);
+        }
+
+        menu.style.display = "none";
+      });
+    });
+  },
+  createHeart: function (position) {
+    if (!position) return;
+
+    let scene = document.querySelector("#scene");
+    let heart = document.createElement("a-entity");
+    heart.setAttribute("heart-shape", "");
+    heart.setAttribute("rotation", "180 0 0");
+    heart.setAttribute("scale", "0.005 0.005 0.005");
+    heart.setAttribute("heart-shape", "color: #ff69b4"); // Example color: pink
+    heart.setAttribute(
+      "position",
+      `${position.x - 0.1} ${position.y + 0.5} ${position.z + 0.1}`
+    );
+    scene.appendChild(heart);
+
+    setTimeout(() => {
+      heart.remove();
+    }, 7000);
+  },
+  createMark: function (position) {
+    if (!position) return;
+    // Create the marker div
+    let marker = document.createElement("div");
+    marker.className = "marker visible";
+
+    let label = document.createElement("div");
+    label.className = "label";
+    label.innerHTML =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-geo-alt-fill" viewBox="0 0 16 16"><path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10m0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6"/></svg>';
+
+    let text = document.createElement("div");
+    text.className = "text";
+    text.innerHTML = "User X placed this marker";
+
+    let distance = document.createElement("div");
+    distance.className = "distance";
+
+    marker.appendChild(label);
+    marker.appendChild(distance);
+    marker.appendChild(text);
+
+    // Append the marker to the body or a container div
+    document.body.appendChild(marker);
+
+    // Store the marker in the markings array for future reference
+    this.markings.push({ marker, position });
+  },
+  tick: function () {
+  // Update the position of the mark
+  if (!Array.isArray(this.markings) || this.markings.length <= 0) return;
+  const sceneEl = document.querySelector("a-scene");
+  const cameraEl = sceneEl.querySelector("[camera]");
+  const camera = cameraEl.getObject3D("camera");
+  const frustum = new THREE.Frustum();
+  const cameraViewProjectionMatrix = new THREE.Matrix4();
+
+  // Get the camera's view projection matrix
+  camera.updateMatrixWorld(); // Ensure camera matrix is up to date
+  camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+  cameraViewProjectionMatrix.multiplyMatrices(
+    camera.projectionMatrix,
+    camera.matrixWorldInverse
+  );
+  frustum.setFromProjectionMatrix(cameraViewProjectionMatrix);
+
+  for (const mark of this.markings) {
+    const screenPosition = mark.position.clone();
+    screenPosition.project(camera);
+
+    let translateX = screenPosition.x * window.innerWidth * 0.5;
+    let translateY = -screenPosition.y * window.innerHeight * 0.5;
+
+    // Calculate the distance between the marker and the camera
+    const cameraPosition = new THREE.Vector3();
+    camera.getWorldPosition(cameraPosition);
+    const markDistance = cameraPosition.distanceTo(mark.position);
+
+    // Update the distance element's text
+    const distanceElement = mark.marker.querySelector(".distance");
+    distanceElement.innerHTML = `${markDistance.toFixed(1)} m`;
+
+    // Test if the mark is visible using frustum culling
+    let markVisible = frustum.containsPoint(mark.position);
+    if (markVisible) {
+      // If the point is in the frustum, check for occlusion using raycasting
+      const raycaster = new THREE.Raycaster();
+      const direction = mark.position.clone().sub(cameraPosition).normalize();
+      raycaster.set(cameraPosition, direction);
+      const intersects = raycaster.intersectObjects(
+        sceneEl.object3D.children,
+        true
+      );
+
+      // Check if the mark is the first intersected object
+      console.log(intersects);
+      markVisible =
+        intersects.length === 0 || intersects[0].distance.toFixed(3) == markDistance.toFixed(3);
+    }
+
+    // Only update the class if there is a change in visibility
+    if (markVisible) {
+      if (mark.marker.classList.contains("shadow")) {
+        mark.marker.classList.remove("shadow");
+      }
+    } else {
+      if (!mark.marker.classList.contains("shadow")) {
+        mark.marker.classList.add("shadow");
+      }
+
+      // Calculate the edge position with constraints
+      const edgePadding = 50; // Padding from the edge of the screen
+      const minTranslateX = -window.innerWidth * 0.5 + edgePadding;
+      const maxTranslateX = window.innerWidth * 0.5 - edgePadding;
+      const minTranslateY = -window.innerHeight * 0.5 + edgePadding;
+      const maxTranslateY = window.innerHeight * 0.5 - edgePadding;
+
+      // Adjust translateX and translateY to stay within the screen edges
+      if (translateX < minTranslateX) translateX = minTranslateX;
+      if (translateX > maxTranslateX) translateX = maxTranslateX;
+      if (translateY < minTranslateY) translateY = minTranslateY;
+      if (translateY > maxTranslateY) translateY = maxTranslateY;
+
+      // Adjust position to be on the edge if it goes out of bounds
+      if (translateX === minTranslateX || translateX === maxTranslateX) {
+        translateY = Math.max(Math.min(translateY, maxTranslateY), minTranslateY);
+      } else if (translateY === minTranslateY || translateY === maxTranslateY) {
+        translateX = Math.max(Math.min(translateX, maxTranslateX), minTranslateX);
+      }
+    }
+
+    mark.marker.style.transform = `translate(${translateX}px, ${translateY}px)`;
+  }
+}
+
+});
+
+AFRAME.registerComponent("heart-shape", {
+  schema: {
+    color: { type: "color", default: "#ff0000" }, // Default color is red
+  },
+  init: function () {
+    const heartShape = new THREE.Shape();
+    heartShape.moveTo(25, 25);
+    heartShape.bezierCurveTo(25, 25, 20, 0, 0, 0);
+    heartShape.bezierCurveTo(-30, 0, -30, 35, -30, 35);
+    heartShape.bezierCurveTo(-30, 55, -10, 77, 25, 95);
+    heartShape.bezierCurveTo(60, 77, 80, 55, 80, 35);
+    heartShape.bezierCurveTo(80, 35, 80, 0, 50, 0);
+    heartShape.bezierCurveTo(35, 0, 25, 25, 25, 25);
+
+    const extrudeSettings = {
+      depth: 8,
+      bevelEnabled: true,
+      bevelSegments: 2,
+      steps: 2,
+      bevelSize: 1,
+      bevelThickness: 1,
+    };
+
+    const geometry = new THREE.ExtrudeGeometry(heartShape, extrudeSettings);
+    const material = new THREE.MeshPhongMaterial({ color: this.data.color });
+    const mesh = new THREE.Mesh(geometry, material);
+
+    this.el.setObject3D("mesh", mesh);
+  },
+  update: function () {
+    const mesh = this.el.getObject3D("mesh");
+    if (mesh) {
+      mesh.material.color.set(this.data.color);
+    }
+  },
+  remove: function () {
+    this.el.removeObject3D("mesh");
+  },
+});
+
+</script>

@@ -177,7 +177,7 @@
   background-color: lime;
 }
 </style>
-<script>
+<!-- <script>
 AFRAME.registerComponent("gestures", {
   init: function () {
     this.set_context_menu();
@@ -495,7 +495,7 @@ AFRAME.registerComponent("log-visible-objects", {
     direction.subVectors(hitPosition, cameraPosition).normalize();
 
     // Calculate the new position 2 meters away from the camera along the direction vector
-    const arrowPosition = new THREE.Vector3();
+    const arrowPosition = new THREE.Vector3();d
     arrowPosition.addVectors(cameraPosition, direction.multiplyScalar(2));
     // Set the y position to 1
     arrowPosition.y = 1;
@@ -542,4 +542,4 @@ AFRAME.registerComponent("log-visible-objects", {
     }
   },
 });
-</script>
+</script> -->
