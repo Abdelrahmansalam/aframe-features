@@ -33,7 +33,7 @@
   </a-scene>
 </template>
 
-<script>
+<!-- <script>
 AFRAME.registerComponent('add-raycastable', {
   init: function () {
     // Get all child entities of this entity
@@ -114,4 +114,4 @@ let intersectionPoint = event.detail?.intersection?.point ?? event.point;
 });
 </script>
 
-
+ -->

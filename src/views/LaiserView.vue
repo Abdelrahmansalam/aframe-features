@@ -17,7 +17,7 @@
   </a-scene>
 </template>
 
-<script>
+<!-- <script>
 AFRAME.registerComponent("add-raycastable", {
   init: function () {
     let children = this.el.querySelectorAll("*");
@@ -145,9 +145,9 @@ AFRAME.registerComponent("laser", {
       const particlePos = new THREE.Vector3(x, y, z).applyQuaternion(quaternion);
       positions.set([particlePos.x, particlePos.y, particlePos.z], i * 3);
       velocities.set([
-        (Math.random() - 0.5) * 0.001,
-        (Math.random() - 0.5) * 0.001,
-        (Math.random() - 0.5) * 0.001,
+        (Math.random() - 0.005) * 0.001,
+        (Math.random() - 0.005) * 0.001,
+        (Math.random() - 0.005) * 0.001,
       ], i * 3);
 
       const distanceFromCenter = Math.sqrt(x * x + y * y);
@@ -238,4 +238,4 @@ AFRAME.registerComponent("laser", {
     }, 3000);
   },
 });
-</script>
+</script> -->

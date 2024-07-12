@@ -7,6 +7,7 @@
       ></a-asset-item>
     </a-assets>
     <a-entity gestures>
+
       <a-box
         position="0 2.5 -20"
         width="30"
@@ -130,6 +131,41 @@
   border-radius: 5px;
   pointer-events: none;
 }
+.marker .arrow {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    visibility: hidden;
+  }
+  .marker .arrow.right {
+    border-width: 10px 0 10px 10px;
+    border-color: transparent transparent transparent #00000077;
+    left: 30px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .marker .arrow.left {
+    border-width: 10px 10px 10px 0;
+    border-color: transparent #00000077 transparent transparent;
+    right: 30px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .marker .arrow.top {
+    border-width: 0 10px 10px 10px;
+    border-color: transparent transparent #00000077 transparent;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .marker .arrow.bottom {
+    border-width: 10px 10px 0 10px;
+    border-color: #00000077 transparent transparent transparent;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
 .context-menu {
   display: none;
   position: absolute;
@@ -255,10 +291,7 @@ AFRAME.registerComponent("gestures", {
         const action = item.getAttribute("data-action");
         console.log("Action:", action);
 
-        if (action === "action3") {
-          // Heart action
-          component.createHeart(component.lastClickPosition);
-        } else if (action === "action2") {
+        if (action === "action2") {
           // Pointer action
           component.createMark(component.lastClickPosition);
         }
@@ -266,25 +299,6 @@ AFRAME.registerComponent("gestures", {
         menu.style.display = "none";
       });
     });
-  },
-  createHeart: function (position) {
-    if (!position) return;
-
-    let scene = document.querySelector("#scene");
-    let heart = document.createElement("a-entity");
-    heart.setAttribute("heart-shape", "");
-    heart.setAttribute("rotation", "180 0 0");
-    heart.setAttribute("scale", "0.005 0.005 0.005");
-    heart.setAttribute("heart-shape", "color: #ff69b4"); // Example color: pink
-    heart.setAttribute(
-      "position",
-      `${position.x - 0.1} ${position.y + 0.5} ${position.z + 0.1}`
-    );
-    scene.appendChild(heart);
-
-    setTimeout(() => {
-      heart.remove();
-    }, 7000);
   },
   createMark: function (position) {
     if (!position) return;
@@ -295,7 +309,7 @@ AFRAME.registerComponent("gestures", {
     let label = document.createElement("div");
     label.className = "label";
     label.innerHTML =
-      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-geo-alt-fill" viewBox="0 0 16 16"><path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10m0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6"/></svg>';
+      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="blue" class="bi bi-geo-alt-fill" viewBox="0 0 16 16"><path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10m0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6"/></svg>';
 
     let text = document.createElement("div");
     text.className = "text";
@@ -304,40 +318,130 @@ AFRAME.registerComponent("gestures", {
     let distance = document.createElement("div");
     distance.className = "distance";
 
+    let arrowRight = document.createElement("div");
+      arrowRight.className = "arrow right";
+  
+      let arrowLeft = document.createElement("div");
+      arrowLeft.className = "arrow left";
+  
+      let arrowTop = document.createElement("div");
+      arrowTop.className = "arrow top";
+  
+      let arrowBottom = document.createElement("div");
+      arrowBottom.className = "arrow bottom";
+
     marker.appendChild(label);
     marker.appendChild(distance);
     marker.appendChild(text);
-
+    marker.appendChild(arrowRight);
+      marker.appendChild(arrowLeft);
+      marker.appendChild(arrowTop);
+      marker.appendChild(arrowBottom);
     // Append the marker to the body or a container div
     document.body.appendChild(marker);
 
     // Store the marker in the markings array for future reference
     this.markings.push({ marker, position });
   },
+
   tick: function () {
-  // Update the position of the mark
   if (!Array.isArray(this.markings) || this.markings.length <= 0) return;
   const sceneEl = document.querySelector("a-scene");
   const cameraEl = sceneEl.querySelector("[camera]");
   const camera = cameraEl.getObject3D("camera");
+
+  // Create a frustum from the camera
   const frustum = new THREE.Frustum();
   const cameraViewProjectionMatrix = new THREE.Matrix4();
-
-  // Get the camera's view projection matrix
-  camera.updateMatrixWorld(); // Ensure camera matrix is up to date
-  camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
-  cameraViewProjectionMatrix.multiplyMatrices(
-    camera.projectionMatrix,
-    camera.matrixWorldInverse
-  );
+  cameraViewProjectionMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   frustum.setFromProjectionMatrix(cameraViewProjectionMatrix);
 
+  // Create or update shafts for each marking
   for (const mark of this.markings) {
+    if (!mark.shaft) {
+      const shaftGeometry = new THREE.BoxGeometry(0.05, 0.05, 0.5);
+      const shaftMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 0 });
+      mark.shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+      mark.shaft.position.set(0, 0, -10);  // Position it 1.5 units in front of the camera
+      camera.add(mark.shaft);
+    }
+
+    // Calculate the start and end points of the shaft
+    const shaftStart = new THREE.Vector3(-0.025, -0.025, -0.25); // Always use the same start point
+    const shaftEnd = new THREE.Vector3(0.025, 0.025, 0.25);      // Always use the same end point
+
+    // Convert start and end points to world coordinates
+    mark.shaft.localToWorld(shaftStart);
+    mark.shaft.localToWorld(shaftEnd);
+
+    // Project start and end points to screen space
+    const screenStart = shaftStart.clone().project(camera);
+    const screenEnd = shaftEnd.clone().project(camera);
+
+    // Convert projected points to screen coordinates
+    const startX = (screenStart.x * 0.5 + 0.5) * window.innerWidth;
+    const startY = (-screenStart.y * 0.5 + 0.5) * window.innerHeight;
+    const endX = (screenEnd.x * 0.5 + 0.5) * window.innerWidth;
+    const endY = (-screenEnd.y * 0.5 + 0.5) * window.innerHeight;
+
+    // Extend the shaft vector to ensure it intersects with the screen sides
+    const intersections = [];
+
+    const extendToScreen = (x1, y1, x2, y2, width, height, padding) => {
+      // Function to find intersection with a side
+      const findIntersection = (x1, y1, x2, y2, side) => {
+        let x, y;
+        if (side === 'left' || side === 'right') {
+          x = (side === 'left') ? padding : width - padding;
+          y = y1 + (x - x1) * (y2 - y1) / (x2 - x1);
+          if (y >= padding && y <= height - padding) {
+            intersections.push({ x, y, side });
+          }
+        } else if (side === 'top' || side === 'bottom') {
+          y = (side === 'top') ? padding : height - padding;
+          x = x1 + (y - y1) * (x2 - x1) / (y2 - y1);
+          if (x >= padding && x <= width - padding) {
+            intersections.push({ x, y, side });
+          }
+        }
+      };
+
+      // Check intersections with all sides
+      findIntersection(x1, y1, x2, y2, 'left');
+      findIntersection(x1, y1, x2, y2, 'right');
+      findIntersection(x1, y1, x2, y2, 'top');
+      findIntersection(x1, y1, x2, y2, 'bottom');
+    };
+
+    extendToScreen(startX, startY, endX, endY, window.innerWidth, window.innerHeight, 50);
+
+    // Calculate the distances to the shaft end and find the closest intersection
+    let minDistance = Infinity;
+    let closestIntersection = null;
+
+    intersections.forEach(intersection => {
+      const distance = Math.sqrt(Math.pow(intersection.x - endX, 2) + Math.pow(intersection.y - endY, 2));
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestIntersection = intersection;
+      }
+    });
+
+    // Convert the correct intersection to NDC
+    const convertToNDC = (x, y, width, height) => {
+      const ndcX = (x / width) * 2 - 1;
+      const ndcY = -(y / height) * 2 + 1;
+      return { ndcX, ndcY };
+    };
+
+    let closestIntersectionNDC = null;
+    if (closestIntersection) {
+      closestIntersectionNDC = convertToNDC(closestIntersection.x, closestIntersection.y, window.innerWidth, window.innerHeight);
+    }
+
+    // Update the position of the markings
     const screenPosition = mark.position.clone();
     screenPosition.project(camera);
-
-    let translateX = screenPosition.x * window.innerWidth * 0.5;
-    let translateY = -screenPosition.y * window.innerHeight * 0.5;
 
     // Calculate the distance between the marker and the camera
     const cameraPosition = new THREE.Vector3();
@@ -348,99 +452,47 @@ AFRAME.registerComponent("gestures", {
     const distanceElement = mark.marker.querySelector(".distance");
     distanceElement.innerHTML = `${markDistance.toFixed(1)} m`;
 
-    // Test if the mark is visible using frustum culling
-    let markVisible = frustum.containsPoint(mark.position);
-    if (markVisible) {
-      // If the point is in the frustum, check for occlusion using raycasting
-      const raycaster = new THREE.Raycaster();
-      const direction = mark.position.clone().sub(cameraPosition).normalize();
-      raycaster.set(cameraPosition, direction);
-      const intersects = raycaster.intersectObjects(
-        sceneEl.object3D.children,
-        true
-      );
+    // Ensure the shaft always looks at the mark position
+    mark.shaft.lookAt(mark.position);
 
-      // Check if the mark is the first intersected object
-      console.log(intersects);
-      markVisible =
-        intersects.length === 0 || intersects[0].distance.toFixed(3) == markDistance.toFixed(3);
+    // Update arrow visibility based on the closest side
+    const arrowRight = mark.marker.querySelector(".arrow.right");
+    const arrowLeft = mark.marker.querySelector(".arrow.left");
+    const arrowTop = mark.marker.querySelector(".arrow.top");
+    const arrowBottom = mark.marker.querySelector(".arrow.bottom");
+
+    if (arrowRight && arrowLeft && arrowTop && arrowBottom) {
+      arrowRight.style.visibility = closestIntersection.side === 'right' ? 'visible' : 'hidden';
+      arrowLeft.style.visibility = closestIntersection.side === 'left' ? 'visible' : 'hidden';
+      arrowTop.style.visibility = closestIntersection.side === 'top' ? 'visible' : 'hidden';
+      arrowBottom.style.visibility = closestIntersection.side === 'bottom' ? 'visible' : 'hidden';
     }
 
-    // Only update the class if there is a change in visibility
-    if (markVisible) {
-      if (mark.marker.classList.contains("shadow")) {
-        mark.marker.classList.remove("shadow");
-      }
-    } else {
-      if (!mark.marker.classList.contains("shadow")) {
-        mark.marker.classList.add("shadow");
-      }
-
-      // Calculate the edge position with constraints
-      const edgePadding = 50; // Padding from the edge of the screen
-      const minTranslateX = -window.innerWidth * 0.5 + edgePadding;
-      const maxTranslateX = window.innerWidth * 0.5 - edgePadding;
-      const minTranslateY = -window.innerHeight * 0.5 + edgePadding;
-      const maxTranslateY = window.innerHeight * 0.5 - edgePadding;
-
-      // Adjust translateX and translateY to stay within the screen edges
-      if (translateX < minTranslateX) translateX = minTranslateX;
-      if (translateX > maxTranslateX) translateX = maxTranslateX;
-      if (translateY < minTranslateY) translateY = minTranslateY;
-      if (translateY > maxTranslateY) translateY = maxTranslateY;
-
-      // Adjust position to be on the edge if it goes out of bounds
-      if (translateX === minTranslateX || translateX === maxTranslateX) {
-        translateY = Math.max(Math.min(translateY, maxTranslateY), minTranslateY);
-      } else if (translateY === minTranslateY || translateY === maxTranslateY) {
-        translateX = Math.max(Math.min(translateX, maxTranslateX), minTranslateX);
-      }
+    // Check if the marker is in front of the camera
+    if (!frustum.containsPoint(mark.position)) {
+    // Place the marker at the correct intersection point using NDC
+    if (closestIntersectionNDC) {
+      const translateX = (closestIntersectionNDC.ndcX * 0.5 ) * (window.innerWidth - 100);
+      const translateY = (-(closestIntersectionNDC.ndcY * 0.5) ) * (window.innerHeight - 100) ;
+      mark.marker.style.transform = `translate(${translateX}px, ${translateY}px)`;
     }
-
-    mark.marker.style.transform = `translate(${translateX}px, ${translateY}px)`;
-  }
+    continue;
+  }else if (arrowRight && arrowLeft && arrowTop && arrowBottom) {
+          arrowRight.style.visibility = 'hidden';
+          arrowLeft.style.visibility = 'hidden';
+          arrowTop.style.visibility = 'hidden';
+          arrowBottom.style.visibility = 'hidden';
+        }
+  
+      // Marker is in front of the camera, update its position and make it visible
+  
+      let translateX = screenPosition.x * window.innerWidth * 0.5;
+      let translateY = -screenPosition.y * window.innerHeight * 0.5;
+  
+      mark.marker.style.transform = `translate(${translateX}px, ${translateY}px)`;
+    }
+  
 }
 
 });
-
-AFRAME.registerComponent("heart-shape", {
-  schema: {
-    color: { type: "color", default: "#ff0000" }, // Default color is red
-  },
-  init: function () {
-    const heartShape = new THREE.Shape();
-    heartShape.moveTo(25, 25);
-    heartShape.bezierCurveTo(25, 25, 20, 0, 0, 0);
-    heartShape.bezierCurveTo(-30, 0, -30, 35, -30, 35);
-    heartShape.bezierCurveTo(-30, 55, -10, 77, 25, 95);
-    heartShape.bezierCurveTo(60, 77, 80, 55, 80, 35);
-    heartShape.bezierCurveTo(80, 35, 80, 0, 50, 0);
-    heartShape.bezierCurveTo(35, 0, 25, 25, 25, 25);
-
-    const extrudeSettings = {
-      depth: 8,
-      bevelEnabled: true,
-      bevelSegments: 2,
-      steps: 2,
-      bevelSize: 1,
-      bevelThickness: 1,
-    };
-
-    const geometry = new THREE.ExtrudeGeometry(heartShape, extrudeSettings);
-    const material = new THREE.MeshPhongMaterial({ color: this.data.color });
-    const mesh = new THREE.Mesh(geometry, material);
-
-    this.el.setObject3D("mesh", mesh);
-  },
-  update: function () {
-    const mesh = this.el.getObject3D("mesh");
-    if (mesh) {
-      mesh.material.color.set(this.data.color);
-    }
-  },
-  remove: function () {
-    this.el.removeObject3D("mesh");
-  },
-});
-
 </script>

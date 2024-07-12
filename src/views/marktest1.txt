@@ -1,20 +1,12 @@
 <template>
-  <a-scene id="scene">
+  <a-scene id="scene" marker>
     <a-assets>
       <a-asset-item
         id="sky"
         src="../../public/assets/models/sky/scene.gltf"
       ></a-asset-item>
-      <a-asset-item
-        id="mark"
-        src="../../public/assets/models/map_pointer_3d_icon/scene.gltf"
-      ></a-asset-item>
-      <audio
-        id="marksound"
-        src="../../public/assets/sounds/mark-sound.mp3"
-      ></audio>
     </a-assets>
-    <a-entity gestures log-visible-objects>
+    <a-entity gestures>
       <a-box
         position="0 2.5 -20"
         width="30"
@@ -57,16 +49,10 @@
         capture-mouse
         raycaster
         cursor="rayOrigin: mouse"
-        body="type: static; shape: sphere; sphereRadius: 0.001"
-        super-hands="colliderEvent: raycaster-intersection;
-                                   colliderEventProperty: els;
-                                   colliderEndEvent: raycaster-intersection-cleared;
-                                   colliderEndEventProperty: clearedEls;"
         rotation
         velocity
         rotation-reader
-      >
-      </a-entity>
+      ></a-entity>
     </a-entity>
   </a-scene>
 
@@ -85,24 +71,65 @@
       </div>
     </label>
   </div>
-  <div id="direction-indicator" class="direction-indicator">Marker Here</div>
 </template>
 
 <style>
-.direction-indicator {
-  display: none;
+.marker {
   position: absolute;
-  width: 100px;
-  height: 50px;
-  background-color: rgba(255, 0, 0, 0.7);
-  color: white;
-  text-align: center;
-  line-height: 50px;
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-  border-radius: 10px;
+  top: 50%;
+  left: 50%;
+}
+.marker:hover .text {
+  opacity: 1;
+}
+.marker.shadow .label {
+  filter: drop-shadow(0 0 10px white);
 }
 
+.marker .label {
+  position: absolute;
+  top: -20px;
+  left: -20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #00000077;
+  color: white;
+  font-family: Helvetica, Arial, sans-serif;
+  line-height: 40px;
+  font-weight: 100;
+  font-size: 14px;
+  margin: auto;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.3s;
+}
+.marker .text {
+  position: absolute;
+  top: 55px;
+  width: 200px;
+  background: #00000077;
+  color: white;
+  font-family: Helvetica, Arial, sans-serif;
+  left: -100px;
+  text-align: center;
+  border-radius: 5px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.marker .distance {
+  position: absolute;
+  top: 25px;
+  width: 80px;
+  background: #00000077;
+  color: white;
+  font-family: Helvetica, Arial, sans-serif;
+  left: -40px;
+  text-align: center;
+  border-radius: 5px;
+  pointer-events: none;
+}
 .context-menu {
   display: none;
   position: absolute;
@@ -111,7 +138,6 @@
   border-radius: 50%;
   pointer-events: none;
 }
-
 .context-menu-item {
   position: absolute;
   width: 75px;
@@ -124,33 +150,27 @@
   pointer-events: all;
   cursor: pointer;
   transition: background-color 0.3s;
-  text-align: center;
 }
-
 .context-menu-item[data-action="action1"] {
   top: 0;
   left: 50%;
   transform: translate(-50%, -50%);
 }
-
 .context-menu-item[data-action="action2"] {
   top: 50%;
   left: 100%;
   transform: translate(-50%, -50%);
 }
-
 .context-menu-item[data-action="action3"] {
   top: 100%;
   left: 50%;
   transform: translate(-50%, -50%);
 }
-
 .context-menu-item[data-action="action4"] {
   top: 50%;
   left: 0;
   transform: translate(-50%, -50%);
 }
-
 .close-menu {
   position: absolute;
   width: 30px;
@@ -167,21 +187,20 @@
   cursor: pointer;
   transition: background-color 0.3s;
 }
-
 .close-menu:hover {
   background-color: red;
 }
-
 .context-menu-item:hover {
   background-color: lime;
 }
 </style>
 
-<!-- <script>
+<script>
 AFRAME.registerComponent("gestures", {
   init: function () {
     this.set_context_menu();
     this.lastClickPosition = null; // Store the last click position
+    this.markings = []; // Array to store the current markings
   },
   set_context_menu: function () {
     const sceneEl = document.querySelector("a-scene");
@@ -194,13 +213,13 @@ AFRAME.registerComponent("gestures", {
       e.preventDefault();
 
       // Convert screen coordinates to scene coordinates
-      const camera = sceneEl.camera;
+      this.camera = sceneEl.camera;
       const screenPoint = new THREE.Vector2();
       screenPoint.x = (e.clientX / window.innerWidth) * 2 - 1;
       screenPoint.y = -(e.clientY / window.innerHeight) * 2 + 1;
 
       const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(screenPoint, camera);
+      raycaster.setFromCamera(screenPoint, this.camera);
 
       const intersects = raycaster.intersectObjects(
         sceneEl.object3D.children,
@@ -261,7 +280,6 @@ AFRAME.registerComponent("gestures", {
       "position",
       `${position.x - 0.1} ${position.y + 0.5} ${position.z + 0.1}`
     );
-    heart.setAttribute("dynamic-body", "");
     scene.appendChild(heart);
 
     setTimeout(() => {
@@ -270,59 +288,73 @@ AFRAME.registerComponent("gestures", {
   },
   createMark: function (position) {
     if (!position) return;
+    // Create the marker div
+    let marker = document.createElement("div");
+    marker.className = "marker visible";
 
-    let scene = document.querySelector("#scene");
-    let mark = document.createElement("a-gltf-model");
-    mark.setAttribute("src", "#mark");
-    mark.setAttribute("scale", "0.1 0.1 0.1");
-    mark.setAttribute(
-      "position",
-      `${position.x} ${position.y + 0.2} ${position.z}`
-    );
-    // Wait for the model to load before setting the name
-    mark.addEventListener('model-loaded', function () {
-      mark.object3D.traverse(node => {
-        if (node.isMesh) {
-          node.name = "mark";
-        }
-      });
-    });
-    scene.appendChild(mark);
+    let label = document.createElement("div");
+    label.className = "label";
+    label.innerHTML =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-geo-alt-fill" viewBox="0 0 16 16"><path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10m0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6"/></svg>';
 
-    // Draw a red line from the center of the screen to the mark position
-    this.drawRedLine(scene, position);
+    let text = document.createElement("div");
+    text.className = "text";
+    text.innerHTML = "User X placed this marker";
 
-    setTimeout(() => {
-      mark.remove();
-    }, 7000);
+    let distance = document.createElement("div");
+    distance.className = "distance";
+
+    marker.appendChild(label);
+    marker.appendChild(distance);
+    marker.appendChild(text);
+
+    // Append the marker to the body or a container div
+    document.body.appendChild(marker);
+
+    // Store the marker in the markings array for future reference
+    this.markings.push({ marker, position });
   },
-  drawRedLine: function (scene, position) {
-    const camera = scene.camera;
-    const centerScreen = new THREE.Vector2(0, 0); // Center of the screen
+  tick: function () {
+  // Update the position of the mark
+  if (!Array.isArray(this.markings) || this.markings.length <= 0) return;
+  const sceneEl = document.querySelector("a-scene");
+  const cameraEl = sceneEl.querySelector("[camera]");
+  const camera = cameraEl.getObject3D("camera");
 
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(centerScreen, camera);
+
+  for (const mark of this.markings) {
+    const screenPosition = mark.position.clone();
+    screenPosition.project(camera);
+    
+    if (screenPosition.z < 0 || screenPosition.z > 1) {
+      continue;
+    }
+    let translateX = screenPosition.x * window.innerWidth * 0.5;
+    let translateY = -screenPosition.y * window.innerHeight * 0.5;
+
+    console.log(`Initial translateX: ${translateX}, translateY: ${translateY}`);
+
+    // Calculate the distance between the marker and the camera
     const cameraPosition = new THREE.Vector3();
     camera.getWorldPosition(cameraPosition);
+    const markDistance = cameraPosition.distanceTo(mark.position);
 
-    const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
-    const points = [];
-    points.push(cameraPosition);
-    points.push(new THREE.Vector3(position.x, position.y + 0.2, position.z));
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const line = new THREE.Line(geometry, material);
+    // Update the distance element's text
+    const distanceElement = mark.marker.querySelector(".distance");
+    distanceElement.innerHTML = `${markDistance.toFixed(1)} m`;
 
-    scene.object3D.add(line);
 
-    setTimeout(() => {
-      scene.object3D.remove(line);
-    }, 7000);
+    mark.marker.style.transform = `translate(${translateX}px, ${translateY}px)`;
   }
+}
+
+
+
 });
 
 AFRAME.registerComponent("heart-shape", {
   schema: {
-    color: { type: "color", default: "#ff0000" } // Default color is red
+    color: { type: "color", default: "#ff0000" }, // Default color is red
   },
   init: function () {
     const heartShape = new THREE.Shape();
@@ -340,7 +372,7 @@ AFRAME.registerComponent("heart-shape", {
       bevelSegments: 2,
       steps: 2,
       bevelSize: 1,
-      bevelThickness: 1
+      bevelThickness: 1,
     };
 
     const geometry = new THREE.ExtrudeGeometry(heartShape, extrudeSettings);
@@ -357,70 +389,7 @@ AFRAME.registerComponent("heart-shape", {
   },
   remove: function () {
     this.el.removeObject3D("mesh");
-  }
+  },
 });
 
-AFRAME.registerComponent("log-visible-objects", {
-  init: function () {
-    const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight;
-    console.log(`Screen width: ${screenWidth}, Screen height: ${screenHeight}`);
-
-    this.markerIsInScene = false;
-    this.markerIsViable = false;
-
-    this.logVisibleObjects = this.logVisibleObjects.bind(this); // Bind the function to retain `this` context
-
-    // Add event listeners for mouse movement and keyboard input
-    window.addEventListener('mousemove', this.logVisibleObjects);
-    window.addEventListener('keydown', this.logVisibleObjects);
-  },
-  logVisibleObjects: function () {
-    const sceneEl = this.el.sceneEl;
-    const camera = sceneEl.camera;
-
-    // Function to get visible objects
-    const getVisibleObjects = () => {
-      const frustum = new THREE.Frustum();
-      const cameraViewProjectionMatrix = new THREE.Matrix4();
-
-      // Set the frustum from the camera's perspective
-      cameraViewProjectionMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-      frustum.setFromProjectionMatrix(cameraViewProjectionMatrix);
-
-      const visibleObjects = [];
-      let markObject = null;
-
-      sceneEl.object3D.traverse(node => {
-        if (node.isMesh) {
-          if (frustum.containsPoint(node.position) || frustum.intersectsObject(node)) {
-            visibleObjects.push(node);
-          }
-          if (node.name === 'mark') {
-            markObject = node;
-          }
-        }
-      });
-
-      this.markerIsInScene = !!markObject;
-      console.log("Marker is in the scene:", this.markerIsInScene);
-
-      if (this.markerIsInScene) {
-        this.markerIsViable = visibleObjects.includes(markObject);
-        console.log("Marker is viable:", this.markerIsViable);
-      } else {
-        this.markerIsViable = false;
-        console.log("Marker is viable: false");
-      }
-
-      console.log("Visible Objects:", visibleObjects);
-    };
-
-    getVisibleObjects(); // Call the function to initialize
-  },
-  remove: function () {
-    window.removeEventListener('mousemove', this.logVisibleObjects);
-    window.removeEventListener('keydown', this.logVisibleObjects);
-  }
-});
-</script> -->
+</script>
