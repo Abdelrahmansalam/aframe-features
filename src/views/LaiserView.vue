@@ -17,7 +17,7 @@
   </a-scene>
 </template>
 
-<!-- <script>
+<script>
 AFRAME.registerComponent("add-raycastable", {
   init: function () {
     let children = this.el.querySelectorAll("*");
@@ -238,4 +238,4 @@ AFRAME.registerComponent("laser", {
     }, 3000);
   },
 });
-</script> -->
+</script>

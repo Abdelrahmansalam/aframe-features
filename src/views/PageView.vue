@@ -1,50 +1,14 @@
 <template>
   <a-scene id="scene">
     <a-assets>
-      <a-asset-item
-        id="sky"
-        src="../../public/assets/models/sky/scene.gltf"
-      ></a-asset-item>
-      <a-asset-item
-        id="mark"
-        src="../../public/assets/models/map_pointer_3d_icon/scene.gltf"
-      ></a-asset-item>
-      <audio
-        id="marksound"
-        src="../../public/assets/sounds/mark-sound.mp3"
-      ></audio>
+      <a-asset-item id="sky" src="../../public/assets/models/sky/scene.gltf"></a-asset-item>
+      <a-asset-item id="star" src="../../public/assets/models/star/scene.gltf"></a-asset-item>
     </a-assets>
-    <a-entity gestures log-visible-objects>
-      <a-box
-        position="0 2.5 -20"
-        width="30"
-        height="15"
-        depth="0.2"
-        color="#4CC3D9"
-      ></a-box>
-      <a-box
-        position="-15 2.5 -10"
-        width="30"
-        height="5"
-        depth="0.2"
-        color="#4CC3D9"
-        rotation="0 90 0"
-      ></a-box>
-      <a-box
-        position="15 2.5 -10"
-        width="30"
-        height="5"
-        depth="0.2"
-        color="#4CC3D9"
-        rotation="0 90 0"
-      ></a-box>
-      <a-plane
-        position="0 0 -4"
-        rotation="-90 0 0"
-        width="40"
-        height="40"
-        color="#7BC8A4"
-      ></a-plane>
+    <a-entity custom-interactions log-visible-objects>
+      <a-box position="0 2.5 -20" width="30" height="15" depth="0.2" color="#4CC3D9"></a-box>
+      <a-box position="-15 2.5 -10" width="30" height="5" depth="0.2" color="#4CC3D9" rotation="0 90 0"></a-box>
+      <a-box position="15 2.5 -10" width="30" height="5" depth="0.2" color="#4CC3D9" rotation="0 90 0"></a-box>
+      <a-plane position="0 0 -4" rotation="-90 0 0" width="40" height="40" color="#7BC8A4"></a-plane>
     </a-entity>
     <a-gltf-model src="#sky" rotation="0 180 0"></a-gltf-model>
     <a-entity id="rig">
@@ -58,10 +22,7 @@
         raycaster
         cursor="rayOrigin: mouse"
         body="type: static; shape: sphere; sphereRadius: 0.001"
-        super-hands="colliderEvent: raycaster-intersection;
-                                   colliderEventProperty: els;
-                                   colliderEndEvent: raycaster-intersection-cleared;
-                                   colliderEndEventProperty: clearedEls;"
+        super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls;"
         rotation
         velocity
         rotation-reader
@@ -74,15 +35,9 @@
     <label id="show-menu" for="toggle">
       <div id="close-menu" class="close-menu">X</div>
       <div class="context-menu-item" data-action="action1" id="note">Note</div>
-      <div class="context-menu-item" data-action="action2" id="pointer">
-        Marker
-      </div>
-      <div class="context-menu-item" data-action="action3" id="heart">
-        Heart
-      </div>
-      <div class="context-menu-item" data-action="action4" id="light">
-        Light
-      </div>
+      <div class="context-menu-item" data-action="action2" id="pointer">Marker</div>
+      <div class="context-menu-item" data-action="action3" id="star">Star</div>
+      <div class="context-menu-item" data-action="action4" id="light">Light</div>
     </label>
   </div>
   <div id="direction-indicator" class="direction-indicator">Marker Here</div>
@@ -177,24 +132,25 @@
 }
 </style>
 
-<!-- <script>
-AFRAME.registerComponent("gestures", {
+<script>
+AFRAME.registerComponent('custom-interactions', {
   init: function () {
-    this.set_context_menu();
-    this.lastClickPosition = null; // Store the last click position
+    this.lastClickPosition = null;
+    this.lastClickNormal = null;
+    this.setContextMenu();
   },
-  set_context_menu: function () {
-    const sceneEl = document.querySelector("a-scene");
-    const menu = document.getElementById("context-menu");
-    const closeMenuButton = document.getElementById("close-menu");
+  setContextMenu: function () {
+    const sceneEl = document.querySelector('a-scene');
+    const menu = document.getElementById('context-menu');
+    const closeMenuButton = document.getElementById('close-menu');
     const menuSize = 200; // width and height of the menu container
     const component = this;
 
-    document.addEventListener("contextmenu", function (e) {
+    document.addEventListener('contextmenu', function (e) {
       e.preventDefault();
 
       // Convert screen coordinates to scene coordinates
-      const camera = sceneEl.camera;
+      const camera = sceneEl.camera.el.components.camera.camera;
       const screenPoint = new THREE.Vector2();
       screenPoint.x = (e.clientX / window.innerWidth) * 2 - 1;
       screenPoint.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -209,10 +165,11 @@ AFRAME.registerComponent("gestures", {
       if (intersects.length > 0) {
         const intersect = intersects[0];
         const worldPosition = intersect.point;
-        console.log("World Position:", worldPosition);
+        const worldNormal = component.getWorldNormal(intersect);
 
-        // Store the world position for later use
+        // Store the world position and normal for later use
         component.lastClickPosition = worldPosition;
+        component.lastClickNormal = worldNormal;
       }
 
       // Show context menu
@@ -220,207 +177,118 @@ AFRAME.registerComponent("gestures", {
       const posY = e.clientY - menuSize / 2;
       menu.style.top = `${posY}px`;
       menu.style.left = `${posX}px`;
-      menu.style.display = "block";
+      menu.style.display = 'block';
     });
 
-    document.addEventListener("click", function () {
-      menu.style.display = "none";
+    document.addEventListener('click', function () {
+      menu.style.display = 'none';
     });
 
-    closeMenuButton.addEventListener("click", function () {
-      menu.style.display = "none";
+    closeMenuButton.addEventListener('click', function () {
+      menu.style.display = 'none';
     });
 
-    document.querySelectorAll(".context-menu-item").forEach((item) => {
-      item.addEventListener("click", function () {
-        const action = item.getAttribute("data-action");
-        console.log("Action:", action);
+    document.querySelectorAll('.context-menu-item').forEach((item) => {
+      item.addEventListener('click', function () {
+        const action = item.getAttribute('data-action');
+        console.log('Action:', action);
 
-        if (action === "action3") {
-          // Heart action
-          component.createHeart(component.lastClickPosition);
-        } else if (action === "action2") {
-          // Pointer action
-          component.createMark(component.lastClickPosition);
-        }
-
-        menu.style.display = "none";
+        if (action === 'action3') {
+          // new model action
+          component.createStar(component.lastClickPosition, component.lastClickNormal);
+        } 
+        menu.style.display = 'none';
       });
     });
   },
-  createHeart: function (position) {
-    if (!position) return;
-
-    let scene = document.querySelector("#scene");
-    let heart = document.createElement("a-entity");
-    heart.setAttribute("heart-shape", "");
-    heart.setAttribute("rotation", "180 0 0");
-    heart.setAttribute("scale", "0.005 0.005 0.005");
-    heart.setAttribute("heart-shape", "color: #ff69b4"); // Example color: pink
-    heart.setAttribute(
-      "position",
-      `${position.x - 0.1} ${position.y + 0.5} ${position.z + 0.1}`
-    );
-    heart.setAttribute("dynamic-body", "");
-    scene.appendChild(heart);
-
-    setTimeout(() => {
-      heart.remove();
-    }, 7000);
+  getWorldNormal: function(intersect) {
+    const normalMatrix = new THREE.Matrix3().getNormalMatrix(intersect.object.matrixWorld);
+    const worldNormal = intersect.face.normal.clone().applyMatrix3(normalMatrix).normalize();
+    return worldNormal;
   },
-  createMark: function (position) {
-    if (!position) return;
+  findPerpendicularVector: function(normal) {
+    // Step 1: Choose an arbitrary vector that is not collinear with the normal vector.
+    let arbitraryVector = new THREE.Vector3(1, 0, 0);
+    console.log("normal", normal);
 
-    let scene = document.querySelector("#scene");
-    let mark = document.createElement("a-gltf-model");
-    mark.setAttribute("src", "#mark");
-    mark.setAttribute("scale", "0.1 0.1 0.1");
-    mark.setAttribute(
-      "position",
-      `${position.x} ${position.y + 0.2} ${position.z}`
-    );
-    // Wait for the model to load before setting the name
-    mark.addEventListener('model-loaded', function () {
-      mark.object3D.traverse(node => {
-        if (node.isMesh) {
-          node.name = "mark";
-        }
-      });
-    });
-    scene.appendChild(mark);
-
-    // Draw a red line from the center of the screen to the mark position
-    this.drawRedLine(scene, position);
-
-    setTimeout(() => {
-      mark.remove();
-    }, 7000);
-  },
-  drawRedLine: function (scene, position) {
-    const camera = scene.camera;
-    const centerScreen = new THREE.Vector2(0, 0); // Center of the screen
-
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(centerScreen, camera);
-    const cameraPosition = new THREE.Vector3();
-    camera.getWorldPosition(cameraPosition);
-
-    const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
-    const points = [];
-    points.push(cameraPosition);
-    points.push(new THREE.Vector3(position.x, position.y + 0.2, position.z));
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const line = new THREE.Line(geometry, material);
-
-    scene.object3D.add(line);
-
-    setTimeout(() => {
-      scene.object3D.remove(line);
-    }, 7000);
-  }
-});
-
-AFRAME.registerComponent("heart-shape", {
-  schema: {
-    color: { type: "color", default: "#ff0000" } // Default color is red
-  },
-  init: function () {
-    const heartShape = new THREE.Shape();
-    heartShape.moveTo(25, 25);
-    heartShape.bezierCurveTo(25, 25, 20, 0, 0, 0);
-    heartShape.bezierCurveTo(-30, 0, -30, 35, -30, 35);
-    heartShape.bezierCurveTo(-30, 55, -10, 77, 25, 95);
-    heartShape.bezierCurveTo(60, 77, 80, 55, 80, 35);
-    heartShape.bezierCurveTo(80, 35, 80, 0, 50, 0);
-    heartShape.bezierCurveTo(35, 0, 25, 25, 25, 25);
-
-    const extrudeSettings = {
-      depth: 8,
-      bevelEnabled: true,
-      bevelSegments: 2,
-      steps: 2,
-      bevelSize: 1,
-      bevelThickness: 1
-    };
-
-    const geometry = new THREE.ExtrudeGeometry(heartShape, extrudeSettings);
-    const material = new THREE.MeshPhongMaterial({ color: this.data.color });
-    const mesh = new THREE.Mesh(geometry, material);
-
-    this.el.setObject3D("mesh", mesh);
-  },
-  update: function () {
-    const mesh = this.el.getObject3D("mesh");
-    if (mesh) {
-      mesh.material.color.set(this.data.color);
+    // Check if the normal vector is collinear with the arbitrary vector
+    if (Math.abs(normal.dot(arbitraryVector)) === 1) {
+      // If they are collinear, choose another arbitrary vector
+      arbitraryVector.set(0, 1, 0);
     }
+
+    // Step 2: Calculate the perpendicular vector using the cross product
+    let perpendicularVector = new THREE.Vector3();
+    perpendicularVector.crossVectors(normal, arbitraryVector);
+    perpendicularVector.normalize();
+    console.log("perpendicularVector", perpendicularVector);
+    return perpendicularVector;
   },
-  remove: function () {
-    this.el.removeObject3D("mesh");
-  }
-});
+  createStar: function(position, normal) {
+    if (!position || !normal) return;
 
-AFRAME.registerComponent("log-visible-objects", {
-  init: function () {
-    const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight;
-    console.log(`Screen width: ${screenWidth}, Screen height: ${screenHeight}`);
+    const sceneEl = document.querySelector('a-scene');
+    const starEl = document.createElement('a-entity');
+    starEl.setAttribute('gltf-model', '#star');
+    starEl.setAttribute('position', position);
+    starEl.setAttribute('scale', '3 3 3');
 
-    this.markerIsInScene = false;
-    this.markerIsViable = false;
+    // Step 1: Compute the bounding box and center
+    starEl.addEventListener('model-loaded', () => {
+      const model = starEl.getObject3D('mesh');
+      const bbox = new THREE.Box3().setFromObject(model);
+      const center = new THREE.Vector3();
+      bbox.getCenter(center);
 
-    this.logVisibleObjects = this.logVisibleObjects.bind(this); // Bind the function to retain `this` context
-
-    // Add event listeners for mouse movement and keyboard input
-    window.addEventListener('mousemove', this.logVisibleObjects);
-    window.addEventListener('keydown', this.logVisibleObjects);
-  },
-  logVisibleObjects: function () {
-    const sceneEl = this.el.sceneEl;
-    const camera = sceneEl.camera;
-
-    // Function to get visible objects
-    const getVisibleObjects = () => {
-      const frustum = new THREE.Frustum();
-      const cameraViewProjectionMatrix = new THREE.Matrix4();
-
-      // Set the frustum from the camera's perspective
-      cameraViewProjectionMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-      frustum.setFromProjectionMatrix(cameraViewProjectionMatrix);
-
-      const visibleObjects = [];
-      let markObject = null;
-
-      sceneEl.object3D.traverse(node => {
+      // Step 2: Find the nearest vertex to the center and get its normal
+      let closestVertexDistance = Infinity;
+      let closestVertexNormal = new THREE.Vector3();
+      
+      model.traverse((node) => {
         if (node.isMesh) {
-          if (frustum.containsPoint(node.position) || frustum.intersectsObject(node)) {
-            visibleObjects.push(node);
-          }
-          if (node.name === 'mark') {
-            markObject = node;
+          const geometry = node.geometry;
+          geometry.computeBoundingBox();
+          const positionAttribute = geometry.attributes.position;
+          const normalAttribute = geometry.attributes.normal;
+          
+          for (let i = 0; i < positionAttribute.count; i++) {
+            const vertex = new THREE.Vector3().fromBufferAttribute(positionAttribute, i);
+            const distance = center.distanceTo(vertex);
+            
+            if (distance < closestVertexDistance) {
+              closestVertexDistance = distance;
+              closestVertexNormal.fromBufferAttribute(normalAttribute, i);
+            }
           }
         }
       });
 
-      this.markerIsInScene = !!markObject;
-      console.log("Marker is in the scene:", this.markerIsInScene);
+      closestVertexNormal.normalize();
+      console.log('Normal at the center of the star:', closestVertexNormal);
+    });
 
-      if (this.markerIsInScene) {
-        this.markerIsViable = visibleObjects.includes(markObject);
-        console.log("Marker is viable:", this.markerIsViable);
-      } else {
-        this.markerIsViable = false;
-        console.log("Marker is viable: false");
+    const perpendicularVector = this.findPerpendicularVector(normal);
+    console.log(normal);
+    let quaternion;
+    if (Math.abs(normal.dot(new THREE.Vector3(1, 0, 0))) === 1) {
+      // If they are collinear, choose another arbitrary vector
+      quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), perpendicularVector);
+    } else {
+      quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), perpendicularVector);
+    }
+    const rotation = new THREE.Euler().setFromQuaternion(quaternion, 'XYZ');
+
+    // Adjust the order of rotation components
+    starEl.setAttribute('rotation', `${THREE.MathUtils.radToDeg(rotation.x)} ${THREE.MathUtils.radToDeg(rotation.y)} ${THREE.MathUtils.radToDeg(rotation.z)}`);
+
+    sceneEl.appendChild(starEl);
+
+    // Remove the star after 7 seconds
+    setTimeout(() => {
+      if (starEl.parentNode) {
+        starEl.parentNode.removeChild(starEl);
       }
-
-      console.log("Visible Objects:", visibleObjects);
-    };
-
-    getVisibleObjects(); // Call the function to initialize
+    }, 7000);
   },
-  remove: function () {
-    window.removeEventListener('mousemove', this.logVisibleObjects);
-    window.removeEventListener('keydown', this.logVisibleObjects);
-  }
 });
-</script> -->
+</script>
